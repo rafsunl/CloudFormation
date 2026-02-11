@@ -1,0 +1,15 @@
+*.pem
+*.key
+id_rsa*
+
+.env
+secrets.yml
+
+.aws/
+*.credentials
+
+.DS_Store
+
+.terraform/
+*.tfstate*
+
