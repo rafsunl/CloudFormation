@@ -1,0 +1,11 @@
+Take ami= aws ec2 describe-images --owners 099720109477 --filters "Name=name,Values=ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-*" --query 'Images | sort_by(@, &CreationDate) | [-1].[ImageId,Name]' --output text
+
+Create key pair= aws ec2 create-key-pair --key-name rafsun-practice-key --query 'KeyMaterial' --output text > rafsun-practice-key.pem
+
+Give permission= chmod 400 rafsun-practice-key.pem
+
+Deploy= aws cloudformation create-stack --stack-name ec2-practice --template-body file://CNF_EC2.yaml --parameters ParameterKey=InstanceType,ParameterValue=t3.micro
+
+Get public IP= aws cloudformation describe-stacks --stack-name ec2-practice --query 'Stacks[0].Outputs[?OutputKey==`PublicIP`].OutputValue' --output text
+
+To delete stack= aws cloudformation delete-stack --stack-name ec2-practice

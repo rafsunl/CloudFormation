@@ -1,0 +1,72 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: EC2 Ubuntu instance in public subnet with Elastic IP
+
+Parameters:
+  EnvironmentName:
+    Type: String
+    Default: rafsun-practice
+  KeyPairName:
+    Type: String
+    Default: rafsun-practice-key
+  InstanceType:
+    Type: String
+    Default: t3.micro
+  AMIId:
+    Type: String
+    Default: ami-0136735c2bb5cf5bf
+
+Resources:
+  WebServerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow SSH
+      VpcId: !ImportValue
+        Fn::Sub: ${EnvironmentName}-VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-web-sg
+
+  WebServerInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      ImageId: !Ref AMIId
+      KeyName: !Ref KeyPairName
+      SubnetId: !ImportValue
+        Fn::Sub: ${EnvironmentName}-PublicSubnet1
+      SecurityGroupIds:
+        - !Ref WebServerSecurityGroup
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: 8
+            VolumeType: gp3
+            DeleteOnTermination: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-web-server
+
+  ElasticIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  EIPAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      InstanceId: !Ref WebServerInstance
+      AllocationId: !GetAtt ElasticIP.AllocationId
+
+Outputs:
+  InstanceId:
+    Description: EC2 Instance ID
+    Value: !Ref WebServerInstance
+
+  ElasticIP:
+    Description: Static Public IP
+    Value: !Ref ElasticIP
