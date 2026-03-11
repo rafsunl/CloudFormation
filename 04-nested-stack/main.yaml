@@ -1,0 +1,70 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Parent stack - deploys VPC, EC2, and Auto Scaling with ALB
+
+Parameters:
+  EnvironmentName:
+    Type: String
+    Default: rafsun-practice
+  InstanceType:
+    Type: String
+    Default: t3.micro
+  AMIId:
+    Type: String
+    Default: ami-0136735c2bb5cf5bf
+  KeyPairName:
+    Type: String
+    Default: rafsun-practice-key
+  TemplateBucket:
+    Type: String
+    Default: rafsun-cfn-templates
+
+Resources:
+  # Child Stack 1: VPC
+  VPCStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://${TemplateBucket}.s3.amazonaws.com/vpc.yaml
+      Parameters:
+        EnvironmentName: !Ref EnvironmentName
+
+  # Child Stack 2: EC2 with Elastic IP
+  EC2Stack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: VPCStack
+    Properties:
+      TemplateURL: !Sub https://${TemplateBucket}.s3.amazonaws.com/ec2.yaml
+      Parameters:
+        EnvironmentName: !Ref EnvironmentName
+        VpcId: !GetAtt VPCStack.Outputs.VPCId
+        SubnetId: !GetAtt VPCStack.Outputs.PublicSubnet1
+        InstanceType: !Ref InstanceType
+        AMIId: !Ref AMIId
+        KeyPairName: !Ref KeyPairName
+
+  # Child Stack 3: ALB + Auto Scaling + Nginx
+  ASGStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: VPCStack
+    Properties:
+      TemplateURL: !Sub https://${TemplateBucket}.s3.amazonaws.com/asg.yaml
+      Parameters:
+        EnvironmentName: !Ref EnvironmentName
+        VpcId: !GetAtt VPCStack.Outputs.VPCId
+        PublicSubnet1: !GetAtt VPCStack.Outputs.PublicSubnet1
+        PublicSubnet2: !GetAtt VPCStack.Outputs.PublicSubnet2
+        InstanceType: !Ref InstanceType
+        AMIId: !Ref AMIId
+        KeyPairName: !Ref KeyPairName
+
+Outputs:
+  ALBURL:
+    Description: Open this URL in browser
+    Value: !GetAtt ASGStack.Outputs.ALBDNSName
+
+  EC2ElasticIP:
+    Description: SSH into EC2 with this IP
+    Value: !GetAtt EC2Stack.Outputs.ElasticIP
+
+  VPCId:
+    Description: VPC ID
+    Value: !GetAtt VPCStack.Outputs.VPCId
